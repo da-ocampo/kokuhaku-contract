@@ -24,20 +24,25 @@ contract Kokuhaku is ERC721, ERC721Enumerable, ERC721Pausable, ERC721Burnable, E
     error ExceedsBatchLimit();
 
     // ✧･ﾟ: *✧･ﾟ:* 2. Property Variables ✧･ﾟ: *✧･ﾟ:*
+    /// @notice Maximum supply of tokens.
     uint96 public maxSupply = 20000;
+    /// @notice Base URI for token metadata.
     string public baseURI;
+    /// @notice URI for the contract metadata.
     string public contractURI;
+    /// @dev Internal counter for the next token ID.
     uint256 private _nextTokenId;
-    mapping(uint256 => string) public tokenURIs;
+    /// @dev Mapping to track if an envelope is opened.
     mapping(uint256 => bool) private envelopeOpened;
+    /// @notice Mapping to track the whitelist status of addresses.
     mapping(address => bool) public whiteList;
 
     // ✧･ﾟ: *✧･ﾟ:* 3. Constructor ✧･ﾟ: *✧･ﾟ:*
-    /// @notice Initializes the contract with the given parameters.
-    /// @param initialOwner The initial owner of the contract.
-    /// @param feeNumerator The royalty fee numerator.
-    /// @param _initBaseURI The initial base URI for token metadata.
-    /// @param _contractURI The URI for the contract metadata.
+    /// @notice Constructor to initialize the contract with initial values.
+    /// @param initialOwner Address of the initial owner of the contract.
+    /// @param feeNumerator Royalty fee numerator.
+    /// @param _initBaseURI Initial base URI for token metadata.
+    /// @param _contractURI URI for the contract metadata.
     constructor (
         address initialOwner, 
         uint96 feeNumerator,
@@ -55,38 +60,44 @@ contract Kokuhaku is ERC721, ERC721Enumerable, ERC721Pausable, ERC721Burnable, E
     }
 
     // ✧･ﾟ: *✧･ﾟ:* 4. Owner Functions ✧･ﾟ: *✧･ﾟ:*
-    /// @notice Pauses all token transfers.
+    /// @notice Function to pause the contract.
+    /// @dev Can only be called by the owner.
     function pause() external onlyOwner {
         _pause();
     }
 
-    /// @notice Unpauses all token transfers.
+    /// @notice Function to unpause the contract.
+    /// @dev Can only be called by the owner.
     function unpause() external onlyOwner {
         _unpause();
     }
 
-    /// @notice Sets the contract URI.
-    /// @param _contractURI The new contract URI.
+    /// @notice Function to set the contract URI.
+    /// @dev Can only be called by the owner.
+    /// @param _contractURI New contract URI.
     function setContractURI(string calldata _contractURI) external onlyOwner {
         contractURI = _contractURI;
     }
 
-    /// @notice Resets the royalty information.
-    /// @param receiver The address to receive the royalties.
-    /// @param feeNumerator The royalty fee numerator.
+    /// @notice Function to reset the royalty information.
+    /// @dev Can only be called by the owner.
+    /// @param receiver Address to receive the royalties.
+    /// @param feeNumerator Royalty fee numerator.
     function resetRoyalty(address receiver, uint96 feeNumerator) external onlyOwner {
         _setDefaultRoyalty(receiver, feeNumerator);
     }
 
-    /// @notice Withdraws the contract balance to the specified address.
-    /// @param _addr The address to send the balance to.
+    /// @notice Function to withdraw the contract's balance to a specified address.
+    /// @dev Can only be called by the owner.
+    /// @param _addr Address to receive the withdrawn balance.
     function withdraw(address _addr) external onlyOwner {
         (bool success, ) = payable(_addr).call{value: address(this).balance}("");
         if (!success) revert TransferFailed();
     }
 
-    /// @notice Adds addresses to the whitelist.
-    /// @param addresses The array of addresses to add to the whitelist.
+    /// @notice Function to set the whitelist addresses.
+    /// @dev Can only be called by the owner.
+    /// @param addresses Array of addresses to be whitelisted.
     function setWhiteList(address[] calldata addresses) external onlyOwner {
         uint256 length = addresses.length;
         for (uint256 i = 0; i < length; i++) {
@@ -95,7 +106,8 @@ contract Kokuhaku is ERC721, ERC721Enumerable, ERC721Pausable, ERC721Burnable, E
     }
 
     // ✧･ﾟ: *✧･ﾟ:* 5. Minting Functions ✧･ﾟ: *✧･ﾟ:*
-    /// @notice Mints a token if the caller is whitelisted.
+    /// @notice Function for whitelisted addresses to mint a token for free.
+    /// @dev Only whitelisted addresses can call this function. 
     function privateMint() external {
         if (!whiteList[msg.sender]) revert NotOnWhiteList();
         if (totalSupply() >= maxSupply) revert ExceedsMaxSupply();  // Check maxSupply
@@ -104,15 +116,17 @@ contract Kokuhaku is ERC721, ERC721Enumerable, ERC721Pausable, ERC721Burnable, E
         emit FreeMintUsed(msg.sender);
     }
 
-    /// @notice Mints a token for the caller if they send the required ETH.
+    /// @notice Function for public to mint a token with a fee.
+    /// @dev Requires payment of 1 ether.
     function publicMint() external payable {
         if (msg.value != 1.00 ether) revert NotEnoughFunds();
         if (totalSupply() >= maxSupply) revert ExceedsMaxSupply();
         mint(msg.sender);
     }
 
-    /// @notice Mints multiple tokens for the caller if they send the required ETH.
-    /// @param amount The number of tokens to mint.
+    /// @notice Function for batch minting of tokens.
+    /// @dev Requires payment of 1 ether per token and a maximum of 10 tokens can be minted in a single batch.
+    /// @param amount Number of tokens to mint.
     function batchMint(uint256 amount) external payable {
         if (amount == 0) revert CannotMintZeroTokens();
         if (amount > 10) revert ExceedsBatchLimit();
@@ -124,8 +138,9 @@ contract Kokuhaku is ERC721, ERC721Enumerable, ERC721Pausable, ERC721Burnable, E
         }
     }
 
-    /// @notice Mints tokens for a list of recipients.
-    /// @param recipients The array of addresses to receive the tokens.
+    /// @notice Function for the owner to mint tokens to multiple recipients.
+    /// @dev Can only be called by the owner.
+    /// @param recipients Array of addresses to receive the minted tokens.
     function airdropMint(address[] calldata recipients) external onlyOwner {
         uint256 recipientsLength = recipients.length;
         if (totalSupply() + recipientsLength > maxSupply) revert ExceedsMaxSupply();
@@ -135,31 +150,32 @@ contract Kokuhaku is ERC721, ERC721Enumerable, ERC721Pausable, ERC721Burnable, E
         }
     }
 
-    /// @dev Internal function to mint a token to a specified address.
-    /// @param to The address to mint the token to.
+    /// @notice Internal function to mint a token to a specified address.
+    /// @param to Address to receive the minted token.
     function mint(address to) internal {
         if (totalSupply() >= maxSupply) revert NoTokensAvailable();
-        uint256 tokenId = _nextTokenId;
+        uint256 tokenId = _nextTokenId++;
         _safeMint(to, tokenId);
-        tokenURIs[tokenId] = string.concat(baseURI, "closed_", Strings.toString(_nextTokenId++), ".json");
     }
 
     // ✧･ﾟ: *✧･ﾟ:* 6. Transfer Functions ✧･ﾟ: *✧･ﾟ:*
-    /// @notice Transfers a token from one address to another.
-    /// @param from The address to transfer the token from.
-    /// @param to The address to transfer the token to.
-    /// @param tokenId The ID of the token to transfer.
+    /// @notice Function to transfer a token from one address to another.
+    /// @dev Overrides the default ERC721 implementation to include envelope opening logic.
+    /// @param from Address transferring the token.
+    /// @param to Address receiving the token.
+    /// @param tokenId ID of the token being transferred.
     function transferFrom(address from, address to, uint256 tokenId) public override(ERC721, IERC721) {
         if (!_isAuthorized(from, msg.sender, tokenId)) revert CallerNotOwnerNorApproved();
         openEnvelope(tokenId);
         super.transferFrom(from, to, tokenId);
     }
 
-    /// @notice Safely transfers a token from one address to another.
-    /// @param from The address to transfer the token from.
-    /// @param to The address to transfer the token to.
-    /// @param tokenId The ID of the token to transfer.
-    /// @param data Additional data to send along with the transfer.
+    /// @notice Function to safely transfer a token from one address to another with additional data.
+    /// @dev Overrides the default ERC721 implementation to include envelope opening logic.
+    /// @param from Address transferring the token.
+    /// @param to Address receiving the token.
+    /// @param tokenId ID of the token being transferred.
+    /// @param data Additional data sent with the transfer.
     function safeTransferFrom(address from, address to, uint256 tokenId, bytes memory data) public override(ERC721, IERC721) {
         if (!_isAuthorized(from, msg.sender, tokenId)) revert CallerNotOwnerNorApproved();
         openEnvelope(tokenId);
@@ -167,57 +183,66 @@ contract Kokuhaku is ERC721, ERC721Enumerable, ERC721Pausable, ERC721Burnable, E
     }
 
     // ✧･ﾟ: *✧･ﾟ:* 7. Other Functions ✧･ﾟ: *✧･ﾟ:*
-    /// @notice Burns a token, permanently removing it from the blockchain.
-    /// @param tokenId The ID of the token to burn.
+    /// @notice Function to burn a token.
+    /// @dev Overrides the default ERC721 implementation.
+    /// @param tokenId ID of the token to burn.
     function burn(uint256 tokenId) public override {
         super._burn(tokenId);
     }
 
-    /// @dev Returns the base URI for the token metadata.
-    /// @return The base URI string.
+    /// @notice Function to get the base URI for token metadata.
+    /// @dev Overrides the default ERC721 implementation.
+    /// @return Base URI string.
     function _baseURI() internal view override returns (string memory) {
         return baseURI;
     }
 
-    /// @dev Opens the envelope of a token, changing its metadata URI.
-    /// @param tokenId The ID of the token to open.
+    /// @notice Internal function to open an envelope.
+    /// @param tokenId ID of the token whose envelope is to be opened.
     function openEnvelope(uint256 tokenId) private {
         if (!envelopeOpened[tokenId]) {
-            tokenURIs[tokenId] = string.concat(baseURI, "open_", Strings.toString(tokenId), ".json");
             envelopeOpened[tokenId] = true;
         }
     }
 
     // ✧･ﾟ: *✧･ﾟ:* 8. Mandatory Overrides ✧･ﾟ: *✧･ﾟ:*
-    /// @dev See {ERC721-_update}.
+    /// @notice Internal function to update balances and other data.
+    /// @dev Overrides multiple inherited functions.
+    /// @param to Address receiving the token.
+    /// @param tokenId ID of the token being transferred.
+    /// @param auth Address authorized for the transfer.
+    /// @return Address authorized for the transfer.
     function _update(address to, uint256 tokenId, address auth) internal override(ERC721, ERC721Enumerable, ERC721Pausable) returns (address) {
         return super._update(to, tokenId, auth);
     }
 
-    /// @dev Returns the metadata URI of a token.
-    /// @param tokenId The ID of the token.
-    /// @return The metadata URI string.
+    /// @notice Function to get the token URI.
+    /// @dev Overrides the default ERC721 implementation.
+    /// @param tokenId ID of the token.
+    /// @return Token URI string.
     function tokenURI(uint256 tokenId) public view override returns (string memory) {
         if (ERC721.ownerOf(tokenId) == address(0)) revert NonexistentToken();
-        return tokenURIs[tokenId];
+        return string.concat(baseURI, envelopeOpened[tokenId] ? "open_" : "closed_", Strings.toString(tokenId), ".json");
     }
 
-    /// @dev Increases the balance of an account.
-    /// @param account The address of the account.
-    /// @param value The amount to increase by.
+    /// @notice Internal function to increase balance.
+    /// @dev Overrides multiple inherited functions.
+    /// @param account Address whose balance is to be increased.
+    /// @param value Value by which the balance is to be increased.
     function _increaseBalance(address account, uint128 value) internal override(ERC721, ERC721Enumerable) {
         super._increaseBalance(account, value);
     }
 
-    /// @dev Returns true if the contract supports a given interface.
-    /// @param interfaceId The ID of the interface to check.
-    /// @return True if the interface is supported, false otherwise.
+    /// @notice Function to check if the contract supports a given interface.
+    /// @dev Overrides multiple inherited functions.
+    /// @param interfaceId Interface identifier.
+    /// @return Boolean indicating if the interface is supported.
     function supportsInterface(bytes4 interfaceId) public view override(ERC721, ERC721Enumerable, ERC2981) returns (bool) {
         return super.supportsInterface(interfaceId);
     }
 
     // ✧･ﾟ: *✧･ﾟ:* 9. Event Definitions ✧･ﾟ: *✧･ﾟ:*
-    /// @notice Emitted when a user uses a free mint.
-    /// @param user The address of the user who used the free mint.
+    /// @notice Event emitted when a free mint is used.
+    /// @param user Address of the user who used the free mint.
     event FreeMintUsed(address indexed user);
 }
