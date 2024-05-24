@@ -9,7 +9,7 @@ import {ERC721Pausable} from "@openzeppelin/contracts/token/ERC721/extensions/ER
 import {ERC2981} from "@openzeppelin/contracts/token/common/ERC2981.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
-import {IKokuhaku} from "/IKokuhaku.sol";
+import {IKokuhaku} from "./IKokuhaku.sol";
 
 /**
  * @title Kokuhaku
