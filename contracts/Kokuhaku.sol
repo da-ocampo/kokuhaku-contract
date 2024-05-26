@@ -168,8 +168,11 @@ contract Kokuhaku is
      * @dev Only callable when not paused. Requires a payment of 1 ether.
      */
     function publicMint() external payable whenNotPaused {
-        if (msg.value != 1 ether) revert NotEnoughFunds();
-        if (totalSupply() == maxSupply) revert MintingExceedsMaxSupply();
+        if (msg.value != 1 ether) 
+            revert NotEnoughFunds();
+
+        if (totalSupply() == maxSupply) 
+            revert MintingExceedsMaxSupply();
 
         _safeMint(msg.sender, _nextTokenId++);
     }
@@ -189,7 +192,8 @@ contract Kokuhaku is
             if (totalSupply() + amount > maxSupply)
                 revert MintingExceedsMaxSupply();
 
-            if (msg.value != 1 ether * amount) revert NotEnoughFunds();
+            if (msg.value != 1 ether * amount) 
+                revert NotEnoughFunds();
 
             uint256 tokenId = _nextTokenId;
 
