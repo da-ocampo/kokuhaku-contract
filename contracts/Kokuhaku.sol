@@ -153,10 +153,14 @@ contract Kokuhaku is
      */
     function privateMint() external whenNotPaused {
         if (!whiteList[msg.sender]) revert NotOnWhiteList();
+
         if (totalSupply() == maxSupply) revert MintingExceedsMaxSupply();
+
         delete whiteList[msg.sender];
-        mint(msg.sender);
+
         emit FreeMintUsed(msg.sender);
+
+        _safeMint(msg.sender, _nextTokenId++);
     }
 
     /**
@@ -166,7 +170,8 @@ contract Kokuhaku is
     function publicMint() external payable whenNotPaused {
         if (msg.value != 1 ether) revert NotEnoughFunds();
         if (totalSupply() == maxSupply) revert MintingExceedsMaxSupply();
-        mint(msg.sender);
+
+        _safeMint(msg.sender, _nextTokenId++);
     }
 
     /**
@@ -176,11 +181,24 @@ contract Kokuhaku is
      */
     function batchMint(uint256 amount) external payable whenNotPaused {
         if (amount == 0) revert CannotMintZeroTokens();
+
         if (amount > 10) revert ExceedsBatchLimit();
-        if (totalSupply() + amount > maxSupply) revert MintingExceedsMaxSupply();
-        if (msg.value != 1 ether * amount) revert NotEnoughFunds();
-        for (uint256 i; i < amount; i++) {
-            mint(msg.sender);
+
+        unchecked {
+            /// @dev the amount is enforced <= 10, so should never overflow
+            if (totalSupply() + amount > maxSupply)
+                revert MintingExceedsMaxSupply();
+
+            if (msg.value != 1 ether * amount) revert NotEnoughFunds();
+
+            uint256 tokenId = _nextTokenId;
+
+            for (uint256 i; i < amount; i++) {
+                _safeMint(msg.sender, tokenId);
+                tokenId++;
+            }
+
+            _nextTokenId = tokenId;
         }
     }
 
@@ -193,17 +211,15 @@ contract Kokuhaku is
         uint256 recipientsLength = recipients.length;
         if (totalSupply() + recipientsLength > maxSupply)
             revert MintingExceedsMaxSupply();
-        for (uint256 i; i < recipientsLength; i++) {
-            mint(recipients[i]);
-        }
-    }
 
-    /**
-     * @dev Mints a token to a specified address.
-     * @param to The address to mint the token to.
-     */
-    function mint(address to) internal {
-        _safeMint(to, _nextTokenId++);
+        uint256 tokenId = _nextTokenId;
+
+        for (uint256 i; i < recipientsLength; i++) {
+            _safeMint(recipients[i], tokenId);
+            tokenId++;
+        }
+
+        _nextTokenId = tokenId;
     }
 
     /**
@@ -220,7 +236,9 @@ contract Kokuhaku is
     ) public override(ERC721, IERC721) whenNotPaused {
         if (!_isAuthorized(from, msg.sender, tokenId))
             revert CallerNotOwnerNorApproved();
+
         openEnvelope(tokenId);
+
         super.transferFrom(from, to, tokenId);
     }
 
@@ -240,7 +258,9 @@ contract Kokuhaku is
     ) public override(ERC721, IERC721) whenNotPaused {
         if (!_isAuthorized(from, msg.sender, tokenId))
             revert CallerNotOwnerNorApproved();
+
         openEnvelope(tokenId);
+
         super.safeTransferFrom(from, to, tokenId, data);
     }
 
