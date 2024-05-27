@@ -16,12 +16,18 @@ interface IKokuhaku {
     error ExceedsBatchLimit();
     error ZeroAddressDisallowed();
     error EmptyUriDisallowed();
-
+    error AlreadyPaused();
+    error NotPaused();
+    error InvalidContractURI();
+    error InvalidReceiverAddress();
+    error InvalidFeeNumerator();
+    error InvalidAddress();
+    error NoAddressesProvided();
+    error InvalidAddressInList();
+    error InvalidBaseURI();
 
     // ✧･ﾟ: *✧･ﾟ:* 2. Event Definitions ✧･ﾟ: *✧･ﾟ:*
     /// @notice Event emitted when a free mint is used.
     /// @param user Address of the user who used the free mint.
     event FreeMintUsed(address indexed user);
-
-
 }
