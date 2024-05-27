@@ -71,49 +71,67 @@ contract Kokuhaku is
     }
 
     /**
-     * @notice Pauses all token transfers.
-     * @dev Only callable by the owner.
-     */
+    * @notice Pauses all token transfers.
+    * @dev Only callable by the owner.
+    */
     function pause() external onlyOwner {
+        if (paused()) {
+            revert AlreadyPaused();
+        }
         _pause();
     }
 
     /**
-     * @notice Unpauses all token transfers.
-     * @dev Only callable by the owner.
-     */
+    * @notice Unpauses all token transfers.
+    * @dev Only callable by the owner.
+    */
     function unpause() external onlyOwner {
+        if (!paused()) {
+            revert NotPaused();
+        }
         _unpause();
     }
 
     /**
-     * @notice Sets the contract URI.
-     * @dev Only callable by the owner.
-     * @param contractURI_ The new contract URI.
-     */
+    * @notice Sets the contract URI.
+    * @dev Only callable by the owner.
+    * @param contractURI_ The new contract URI.
+    */
     function setContractURI(string calldata contractURI_) external onlyOwner {
+        if (bytes(contractURI_).length == 0) {
+            revert InvalidContractURI();
+        }
         contractURI = contractURI_;
     }
 
     /**
-     * @notice Resets the royalty settings.
-     * @dev Only callable by the owner.
-     * @param receiver The address of the royalty receiver.
-     * @param feeNumerator The numerator for the royalty fee.
-     */
+    * @notice Resets the royalty settings.
+    * @dev Only callable by the owner.
+    * @param receiver The address of the royalty receiver.
+    * @param feeNumerator The numerator for the royalty fee.
+    */
     function resetRoyalty(
         address receiver,
         uint96 feeNumerator
     ) external onlyOwner {
+        if (receiver == address(0)) {
+            revert InvalidReceiverAddress();
+        }
+        if (feeNumerator == 0) {
+            revert InvalidFeeNumerator();
+        }
         _setDefaultRoyalty(receiver, feeNumerator);
     }
 
     /**
-     * @notice Withdraws the entire balance of the contract to a specified address.
-     * @dev Only callable by the owner.
-     * @param addr The address to send the balance to.
-     */
+    * @notice Withdraws the entire balance of the contract to a specified address.
+    * @dev Only callable by the owner.
+    * @param addr The address to send the balance to.
+    */
     function withdraw(address addr) external onlyOwner {
+        if (addr == address(0)) {
+            revert InvalidAddress();
+        }
         bytes4 errorSelector = IKokuhaku.TransferFailed.selector;
         assembly {
             let success := call(gas(), addr, selfbalance(), 0, 0, 0, 0)
@@ -126,23 +144,32 @@ contract Kokuhaku is
     }
 
     /**
-     * @notice Adds a list of addresses to the whitelist.
-     * @dev Only callable by the owner.
-     * @param addresses The list of addresses to add to the whitelist.
-     */
+    * @notice Adds a list of addresses to the whitelist.
+    * @dev Only callable by the owner.
+    * @param addresses The list of addresses to add to the whitelist.
+    */
     function setWhiteList(address[] calldata addresses) external onlyOwner {
+        if (addresses.length == 0) {
+            revert NoAddressesProvided();
+        }
         uint256 length = addresses.length;
         for (uint256 i; i < length; i++) {
+            if (addresses[i] == address(0)) {
+                revert InvalidAddressInList();
+            }
             whiteList[addresses[i]] = true;
         }
     }
 
     /**
-     * @notice Sets the base URI for token metadata.
-     * @dev Only callable by the owner.
-     * @param newBaseURI The new base URI.
-     */
+    * @notice Sets the base URI for token metadata.
+    * @dev Only callable by the owner.
+    * @param newBaseURI The new base URI.
+    */
     function setBaseURI(string calldata newBaseURI) external onlyOwner {
+        if (bytes(newBaseURI).length == 0) {
+            revert InvalidBaseURI();
+        }
         baseURI = newBaseURI;
     }
 
