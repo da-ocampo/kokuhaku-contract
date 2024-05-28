@@ -26,7 +26,7 @@ contract Kokuhaku is
 {
     using BitMaps for BitMaps.BitMap;
 
-    uint96 public constant maxSupply = 20000;
+    uint96 public constant maxSupply = 10000;
     string public baseURI;
     string public contractURI;
     uint256 private _nextTokenId;
@@ -352,7 +352,7 @@ contract Kokuhaku is
         return
             string.concat(
                 baseURI,
-                envelopeOpened.get(tokenId) ? "open_" : "closed_",
+                envelopeOpened.get(tokenId) ? "open/" : "closed/",
                 Strings.toString(tokenId),
                 ".json"
             );
