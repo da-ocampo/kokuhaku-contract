@@ -352,7 +352,7 @@ contract Kokuhaku is
         return
             string.concat(
                 baseURI,
-                envelopeOpened.get(tokenId) ? "open/" : "closed/",
+                envelopeOpened.get(tokenId) ? "opened/" : "closed/",
                 Strings.toString(tokenId),
                 ".json"
             );
