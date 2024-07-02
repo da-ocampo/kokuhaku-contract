@@ -2,9 +2,7 @@
 pragma solidity 0.8.25;
 
 import {BitMaps} from "@openzeppelin/contracts/utils/structs/BitMaps.sol";
-import {ERC721, IERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import {ERC721Enumerable} from "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
-import {ERC721Burnable} from "@openzeppelin/contracts/token/ERC721/extensions/ERC721Burnable.sol";
+import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {ERC721Pausable} from "@openzeppelin/contracts/token/ERC721/extensions/ERC721Pausable.sol";
 import {ERC2981} from "@openzeppelin/contracts/token/common/ERC2981.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
@@ -13,14 +11,12 @@ import {IKokuhaku} from "./IKokuhaku.sol";
 
 /**
  * @title Kokuhaku
- * @dev Implementation of the Kokuhaku ERC721 NFT contract with additional features such as pausing, burning, royalty settings, and whitelist functionality.
+ * @dev Implementation of the Kokuhaku ERC721 NFT contract with additional features such as pausing, royalty settings, and whitelist functionality.
  */
 contract Kokuhaku is
     IKokuhaku,
     ERC721,
-    ERC721Enumerable,
     ERC721Pausable,
-    ERC721Burnable,
     ERC2981,
     Ownable
 {
@@ -181,7 +177,7 @@ contract Kokuhaku is
     function privateMint() external whenNotPaused {
         if (!whiteList[msg.sender]) revert NotOnWhiteList();
 
-        if (totalSupply() == maxSupply) revert MintingExceedsMaxSupply();
+        if (_nextTokenId > maxSupply) revert MintingExceedsMaxSupply();
 
         delete whiteList[msg.sender];
 
@@ -198,7 +194,7 @@ contract Kokuhaku is
         if (msg.value != 1 ether) 
             revert NotEnoughFunds();
 
-        if (totalSupply() == maxSupply) 
+        if (_nextTokenId > maxSupply) 
             revert MintingExceedsMaxSupply();
 
         _safeMint(msg.sender, _nextTokenId++);
@@ -216,7 +212,7 @@ contract Kokuhaku is
 
         unchecked {
             /// @dev the amount is enforced <= 10, so should never overflow
-            if (totalSupply() + amount > maxSupply)
+            if (_nextTokenId + amount > maxSupply)
                 revert MintingExceedsMaxSupply();
 
             if (msg.value != 1 ether * amount) 
@@ -240,7 +236,7 @@ contract Kokuhaku is
      */
     function airdropMint(address[] calldata recipients) external onlyOwner {
         uint256 recipientsLength = recipients.length;
-        if (totalSupply() + recipientsLength > maxSupply)
+        if (_nextTokenId + recipientsLength > maxSupply)
             revert MintingExceedsMaxSupply();
 
         uint256 tokenId = _nextTokenId;
@@ -264,7 +260,7 @@ contract Kokuhaku is
         address from,
         address to,
         uint256 tokenId
-    ) public override(ERC721, IERC721) whenNotPaused {
+    ) public override whenNotPaused {
         if (!_isAuthorized(from, msg.sender, tokenId))
             revert CallerNotOwnerNorApproved();
 
@@ -286,22 +282,13 @@ contract Kokuhaku is
         address to,
         uint256 tokenId,
         bytes memory data
-    ) public override(ERC721, IERC721) whenNotPaused {
+    ) public override whenNotPaused {
         if (!_isAuthorized(from, msg.sender, tokenId))
             revert CallerNotOwnerNorApproved();
 
         openEnvelope(tokenId);
 
         super.safeTransferFrom(from, to, tokenId, data);
-    }
-
-    /**
-     * @notice Burns a token.
-     * @dev Only callable when not paused.
-     * @param tokenId The ID of the token to burn.
-     */
-    function burn(uint256 tokenId) public override whenNotPaused {
-        super._burn(tokenId);
     }
 
     /**
@@ -319,25 +306,6 @@ contract Kokuhaku is
         if (!envelopeOpened.get(tokenId)) {
             envelopeOpened.set(tokenId);
         }
-    }
-
-    /**
-     * @dev Updates the ownership and state of a token.
-     * @param to The address to transfer the token to.
-     * @param tokenId The ID of the token to transfer.
-     * @param auth The address authorized to transfer the token.
-     * @return The address of the new owner.
-     */
-    function _update(
-        address to,
-        uint256 tokenId,
-        address auth
-    )
-        internal
-        override(ERC721, ERC721Enumerable, ERC721Pausable)
-        returns (address)
-    {
-        return super._update(to, tokenId, auth);
     }
 
     /**
@@ -359,25 +327,28 @@ contract Kokuhaku is
     }
 
     /**
-     * @dev Increases the balance of an account.
-     * @param account The account to increase the balance of.
-     * @param value The amount to increase the balance by.
-     */
-    function _increaseBalance(
-        address account,
-        uint128 value
-    ) internal override(ERC721, ERC721Enumerable) {
-        super._increaseBalance(account, value);
-    }
-
-    /**
      * @notice Checks if the contract supports a specific interface.
      * @param interfaceId The interface identifier.
      * @return True if the contract supports the interface, false otherwise.
      */
     function supportsInterface(
         bytes4 interfaceId
-    ) public view override(ERC721, ERC721Enumerable, ERC2981) returns (bool) {
+    ) public view override(ERC721, ERC2981) returns (bool) {
         return super.supportsInterface(interfaceId);
+    }
+
+    /**
+     * @dev Updates the ownership and state of a token.
+     * @param to The address to transfer the token to.
+     * @param tokenId The ID of the token to transfer.
+     * @param auth The address authorized to transfer the token.
+     * @return The address of the new owner.
+     */
+    function _update(
+        address to,
+        uint256 tokenId,
+        address auth
+    ) internal override(ERC721, ERC721Pausable) returns (address) {
+        return super._update(to, tokenId, auth);
     }
 }
