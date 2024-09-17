@@ -188,10 +188,10 @@ contract Kokuhaku is
 
     /**
      * @notice Mints a token to the caller.
-     * @dev Only callable when not paused. Requires a payment of 1 ether.
+     * @dev Only callable when not paused. Requires a payment of 0.02 ether.
      */
     function publicMint() external payable whenNotPaused {
-        if (msg.value != 1 ether) 
+        if (msg.value != 0.02 ether) 
             revert NotEnoughFunds();
 
         if (_nextTokenId > maxSupply) 
@@ -202,7 +202,7 @@ contract Kokuhaku is
 
     /**
      * @notice Mints multiple tokens to the caller.
-     * @dev Only callable when not paused. Requires a payment of 1 ether per token.
+     * @dev Only callable when not paused. Requires a payment of 0.02 ether per token.
      * @param amount The number of tokens to mint.
      */
     function batchMint(uint256 amount) external payable whenNotPaused {
@@ -215,7 +215,7 @@ contract Kokuhaku is
             if (_nextTokenId + amount > maxSupply)
                 revert MintingExceedsMaxSupply();
 
-            if (msg.value != 1 ether * amount) 
+            if (msg.value != 0.02 ether * amount) 
                 revert NotEnoughFunds();
 
             uint256 tokenId = _nextTokenId;
