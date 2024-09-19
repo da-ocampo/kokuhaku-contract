@@ -25,6 +25,7 @@ interface IKokuhaku {
     error NoAddressesProvided();
     error InvalidAddressInList();
     error InvalidBaseURI();
+    error InvalidFeeDenominator(); // New error for invalid fee denominator
 
     // ✧･ﾟ: *✧･ﾟ:* 2. Event Definitions ✧･ﾟ: *✧･ﾟ:*
     /// @notice Event emitted when a free mint is used.
