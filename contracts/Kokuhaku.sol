@@ -46,7 +46,9 @@ contract Kokuhaku is
             revert ZeroAddressDisallowed();
         }
 
-        require(feeNumerator <= _feeDenominator(), "Invalid fee numerator");
+        if (feeNumerator > _feeDenominator()) {
+            revert InvalidFeeDenominator();
+        }
 
         if (bytes(initBaseURI).length == 0) {
             revert EmptyUriDisallowed();
@@ -102,7 +104,7 @@ contract Kokuhaku is
 
     /**
     * @notice Resets the royalty settings.
-    * @dev Only callable by the owner.
+    * @dev Only callable by the owner. Can only lower the fee numerator.
     * @param receiver The address of the royalty receiver.
     * @param feeNumerator The numerator for the royalty fee.
     */
@@ -114,6 +116,10 @@ contract Kokuhaku is
             revert InvalidReceiverAddress();
         }
         if (feeNumerator == 0) {
+            revert InvalidFeeNumerator();
+        }
+        (address currentReceiver, uint256 currentFeeNumerator) = royaltyInfo(0, 10000);
+        if (feeNumerator >= uint96(currentFeeNumerator * 10000 / _feeDenominator())) {
             revert InvalidFeeNumerator();
         }
         _setDefaultRoyalty(receiver, feeNumerator);
@@ -130,8 +136,7 @@ contract Kokuhaku is
         }
         bytes4 errorSelector = IKokuhaku.TransferFailed.selector;
         assembly {
-            let success := call(gas(), addr, selfbalance(), 0, 0, 0, 0)
-            if iszero(success) {
+            if iszero(call(gas(), addr, selfbalance(), 0, 0, 0, 0)) {
                 let ptr := mload(0x40)
                 mstore(ptr, errorSelector)
                 revert(ptr, 0x4)
