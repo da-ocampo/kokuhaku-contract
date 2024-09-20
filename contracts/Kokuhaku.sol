@@ -180,15 +180,17 @@ contract Kokuhaku is
      * Emits a {FreeMintUsed} event.
      */
     function privateMint() external whenNotPaused {
+        uint256 currentTokenId = _nextTokenId;
         if (!whiteList[msg.sender]) revert NotOnWhiteList();
 
-        if (_nextTokenId > maxSupply) revert MintingExceedsMaxSupply();
+        if (currentTokenId > maxSupply) revert MintingExceedsMaxSupply();
 
         delete whiteList[msg.sender];
 
         emit FreeMintUsed(msg.sender);
 
-        _safeMint(msg.sender, _nextTokenId++);
+        _safeMint(msg.sender, currentTokenId);
+        _nextTokenId = currentTokenId + 1;
     }
 
     /**
@@ -197,12 +199,14 @@ contract Kokuhaku is
      */
     function publicMint() external payable whenNotPaused {
         if (msg.value != 0.02 ether) 
-            revert NotEnoughFunds();
+            revert IncorrectFundsSent();
 
-        if (_nextTokenId > maxSupply) 
+        uint256 currentTokenId = _nextTokenId;
+        if (currentTokenId > maxSupply) 
             revert MintingExceedsMaxSupply();
 
-        _safeMint(msg.sender, _nextTokenId++);
+        _safeMint(msg.sender, currentTokenId);
+        _nextTokenId = currentTokenId + 1;
     }
 
     /**
@@ -215,22 +219,20 @@ contract Kokuhaku is
 
         if (amount > 10) revert ExceedsBatchLimit();
 
+        uint256 currentTokenId = _nextTokenId;
         unchecked {
             /// @dev the amount is enforced <= 10, so should never overflow
-            if (_nextTokenId + amount > maxSupply)
+            if (currentTokenId + amount > maxSupply)
                 revert MintingExceedsMaxSupply();
 
             if (msg.value != 0.02 ether * amount) 
-                revert NotEnoughFunds();
-
-            uint256 tokenId = _nextTokenId;
+                revert IncorrectFundsSent();
 
             for (uint256 i; i < amount; i++) {
-                _safeMint(msg.sender, tokenId);
-                tokenId++;
+                _safeMint(msg.sender, currentTokenId + i);
             }
 
-            _nextTokenId = tokenId;
+            _nextTokenId = currentTokenId + amount;
         }
     }
 
@@ -241,17 +243,15 @@ contract Kokuhaku is
      */
     function airdropMint(address[] calldata recipients) external onlyOwner {
         uint256 recipientsLength = recipients.length;
-        if (_nextTokenId + recipientsLength > maxSupply)
+        uint256 currentTokenId = _nextTokenId;
+        if (currentTokenId + recipientsLength > maxSupply)
             revert MintingExceedsMaxSupply();
 
-        uint256 tokenId = _nextTokenId;
-
         for (uint256 i; i < recipientsLength; i++) {
-            _safeMint(recipients[i], tokenId);
-            tokenId++;
+            _safeMint(recipients[i], currentTokenId + i);
         }
 
-        _nextTokenId = tokenId;
+        _nextTokenId = currentTokenId + recipientsLength;
     }
 
     /**
