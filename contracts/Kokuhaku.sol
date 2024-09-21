@@ -37,8 +37,7 @@ contract Kokuhaku is IKokuhaku, ERC721, ERC721Pausable, ERC2981, Ownable {
         address initialOwner,
         uint96 feeNumerator,
         string memory initBaseURI,
-        string memory contractURI_,
-        bytes32 initialMerkleRoot
+        string memory contractURI_
     ) payable ERC721("Kokuhaku", "KOKU") Ownable(initialOwner) {
         if (initialOwner == address(0)) {
             revert ZeroAddressDisallowed();
