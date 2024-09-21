@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.25;
+pragma solidity 0.8.26;
 
 /// @title Kokuhaku NFT Interface
 /// @notice This Interface defined an ERC721 NFT with minting, burning, pausing, and royalty functionalities.
 interface IKokuhaku {
     // ✧･ﾟ: *✧･ﾟ:* 1. Custom Error Definitions ✧･ﾟ: *✧･ﾟ:*
-    error NotOnWhiteList();
+    error InvalidProofOrNotOnList();
+    error InvalidMerkleRoot();
+    error FreeMintOnListAlreadyUsed();
     error IncorrectFundsSent();
     error CannotMintZeroTokens();
     error MintingExceedsMaxSupply();
@@ -22,8 +24,7 @@ interface IKokuhaku {
     error InvalidReceiverAddress();
     error InvalidFeeNumerator();
     error InvalidAddress();
-    error NoAddressesProvided();
-    error InvalidAddressInList();
+    error EmptyListId();
     error InvalidBaseURI();
     error InvalidFeeDenominator();
 
