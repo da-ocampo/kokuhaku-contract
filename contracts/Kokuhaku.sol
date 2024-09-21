@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.25;
+pragma solidity 0.8.26;
 
 import {BitMaps} from "@openzeppelin/contracts/utils/structs/BitMaps.sol";
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
@@ -7,19 +7,14 @@ import {ERC721Pausable} from "@openzeppelin/contracts/token/ERC721/extensions/ER
 import {ERC2981} from "@openzeppelin/contracts/token/common/ERC2981.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
+import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import {IKokuhaku} from "./IKokuhaku.sol";
 
 /**
  * @title Kokuhaku
  * @dev Implementation of the Kokuhaku ERC721 NFT contract with additional features such as pausing, royalty settings, and whitelist functionality.
  */
-contract Kokuhaku is
-    IKokuhaku,
-    ERC721,
-    ERC721Pausable,
-    ERC2981,
-    Ownable
-{
+contract Kokuhaku is IKokuhaku, ERC721, ERC721Pausable, ERC2981, Ownable {
     using BitMaps for BitMaps.BitMap;
 
     uint96 public constant maxSupply = 10000;
@@ -27,7 +22,8 @@ contract Kokuhaku is
     string public contractURI;
     uint256 private _nextTokenId;
     BitMaps.BitMap internal envelopeOpened;
-    mapping(address => bool) public whiteList;
+    mapping(uint256 => bytes32) public whiteLists;
+    mapping(uint256 => mapping(address => bool)) public addressMintedOnList;
 
     /**
      * @dev Initializes the contract by setting the initial owner, royalty fee, base URI, and contract URI.
@@ -35,12 +31,14 @@ contract Kokuhaku is
      * @param feeNumerator The numerator for the royalty fee.
      * @param initBaseURI The initial base URI for token metadata.
      * @param contractURI_ The URI for the contract metadata.
+     * @param initialMerkleRoot The initial merkle root at ID 1.
      */
     constructor(
         address initialOwner,
         uint96 feeNumerator,
         string memory initBaseURI,
-        string memory contractURI_
+        string memory contractURI_,
+        bytes32 initialMerkleRoot
     ) payable ERC721("Kokuhaku", "KOKU") Ownable(initialOwner) {
         if (initialOwner == address(0)) {
             revert ZeroAddressDisallowed();
@@ -58,10 +56,17 @@ contract Kokuhaku is
             revert EmptyUriDisallowed();
         }
 
+        if (initialMerkleRoot == 0x0) {
+            revert InvalidMerkleRoot();
+        }
+
         baseURI = initBaseURI;
         contractURI = contractURI_;
 
         _setDefaultRoyalty(initialOwner, feeNumerator);
+
+        /// @dev you can take this out and the param out if not deploying a list at the start
+        whiteLists[1] = initialMerkleRoot;
 
         unchecked {
             _nextTokenId++;
@@ -69,9 +74,9 @@ contract Kokuhaku is
     }
 
     /**
-    * @notice Pauses all token transfers.
-    * @dev Only callable by the owner.
-    */
+     * @notice Pauses all token transfers.
+     * @dev Only callable by the owner.
+     */
     function pause() external onlyOwner {
         if (paused()) {
             revert AlreadyPaused();
@@ -80,9 +85,9 @@ contract Kokuhaku is
     }
 
     /**
-    * @notice Unpauses all token transfers.
-    * @dev Only callable by the owner.
-    */
+     * @notice Unpauses all token transfers.
+     * @dev Only callable by the owner.
+     */
     function unpause() external onlyOwner {
         if (!paused()) {
             revert NotPaused();
@@ -91,10 +96,10 @@ contract Kokuhaku is
     }
 
     /**
-    * @notice Sets the contract URI.
-    * @dev Only callable by the owner.
-    * @param contractURI_ The new contract URI.
-    */
+     * @notice Sets the contract URI.
+     * @dev Only callable by the owner.
+     * @param contractURI_ The new contract URI.
+     */
     function setContractURI(string calldata contractURI_) external onlyOwner {
         if (bytes(contractURI_).length == 0) {
             revert InvalidContractURI();
@@ -103,11 +108,11 @@ contract Kokuhaku is
     }
 
     /**
-    * @notice Resets the royalty settings.
-    * @dev Only callable by the owner. Can only lower the fee numerator.
-    * @param receiver The address of the royalty receiver.
-    * @param feeNumerator The numerator for the royalty fee.
-    */
+     * @notice Resets the royalty settings.
+     * @dev Only callable by the owner. Can only lower the fee numerator.
+     * @param receiver The address of the royalty receiver.
+     * @param feeNumerator The numerator for the royalty fee.
+     */
     function resetRoyalty(
         address receiver,
         uint96 feeNumerator
@@ -118,18 +123,23 @@ contract Kokuhaku is
         if (feeNumerator == 0) {
             revert InvalidFeeNumerator();
         }
-        (address currentReceiver, uint256 currentFeeNumerator) = royaltyInfo(0, 10000);
-        if (feeNumerator >= uint96(currentFeeNumerator * 10000 / _feeDenominator())) {
+
+        /// @dev current receiver is not used.
+        (, uint256 currentFeeNumerator) = royaltyInfo(0, 10000);
+        if (
+            feeNumerator >=
+            uint96((currentFeeNumerator * 10000) / _feeDenominator())
+        ) {
             revert InvalidFeeNumerator();
         }
         _setDefaultRoyalty(receiver, feeNumerator);
     }
 
     /**
-    * @notice Withdraws the entire balance of the contract to a specified address.
-    * @dev Only callable by the owner.
-    * @param addr The address to send the balance to.
-    */
+     * @notice Withdraws the entire balance of the contract to a specified address.
+     * @dev Only callable by the owner.
+     * @param addr The address to send the balance to.
+     */
     function withdraw(address addr) external onlyOwner {
         if (addr == address(0)) {
             revert InvalidAddress();
@@ -145,28 +155,32 @@ contract Kokuhaku is
     }
 
     /**
-    * @notice Adds a list of addresses to the whitelist.
-    * @dev Only callable by the owner.
-    * @param addresses The list of addresses to add to the whitelist.
-    */
-    function setWhiteList(address[] calldata addresses) external onlyOwner {
-        if (addresses.length == 0) {
-            revert NoAddressesProvided();
+     * @notice Adds a list of addresses to the whitelist.
+     * @dev Only callable by the owner.
+     * @param listId The list id.
+     * @param merkleRoot The merkle root for the list.
+     * @dev BE CAREFUL, THIS OVERWRITES - IDEALLY JUST FIX MISTAKES WITH A NEW ID.
+     */
+    function setWhiteList(
+        uint256 listId,
+        bytes32 merkleRoot
+    ) external onlyOwner {
+        if (listId == 0) {
+            revert EmptyListId();
         }
-        uint256 length = addresses.length;
-        for (uint256 i; i < length; i++) {
-            if (addresses[i] == address(0)) {
-                revert InvalidAddressInList();
-            }
-            whiteList[addresses[i]] = true;
+
+        if (merkleRoot == 0x0) {
+            revert InvalidMerkleRoot();
         }
+
+        whiteLists[listId] = merkleRoot;
     }
 
     /**
-    * @notice Sets the base URI for token metadata.
-    * @dev Only callable by the owner.
-    * @param newBaseURI The new base URI.
-    */
+     * @notice Sets the base URI for token metadata.
+     * @dev Only callable by the owner.
+     * @param newBaseURI The new base URI.
+     */
     function setBaseURI(string calldata newBaseURI) external onlyOwner {
         if (bytes(newBaseURI).length == 0) {
             revert InvalidBaseURI();
@@ -179,15 +193,32 @@ contract Kokuhaku is
      * @dev Only callable when not paused.
      * Emits a {FreeMintUsed} event.
      */
-    function privateMint() external whenNotPaused {
+    function privateMint(
+        uint256 listId,
+        bytes32[] calldata merkleProof
+    ) external whenNotPaused {
+        if (addressMintedOnList[listId][msg.sender]) {
+            revert FreeMintOnListAlreadyUsed();
+        }
+
         uint256 currentTokenId = _nextTokenId;
-        if (!whiteList[msg.sender]) revert NotOnWhiteList();
+
+        // Generate the leaf
+        bytes32 leaf = keccak256(
+            bytes.concat(keccak256(abi.encode(msg.sender)))
+        );
+
+        // Verify the merkle proof
+        if (!MerkleProof.verify(merkleProof, whiteLists[listId], leaf))
+            revert InvalidProofOrNotOnList();
+
+        // if (!whiteList[msg.sender]) revert NotOnWhiteList();
 
         if (currentTokenId > maxSupply) revert MintingExceedsMaxSupply();
 
-        delete whiteList[msg.sender];
-
         emit FreeMintUsed(msg.sender);
+
+        addressMintedOnList[listId][msg.sender] = true;
 
         _safeMint(msg.sender, currentTokenId);
         _nextTokenId = currentTokenId + 1;
@@ -198,12 +229,10 @@ contract Kokuhaku is
      * @dev Only callable when not paused. Requires a payment of 0.02 ether.
      */
     function publicMint() external payable whenNotPaused {
-        if (msg.value != 0.02 ether) 
-            revert IncorrectFundsSent();
+        if (msg.value != 0.02 ether) revert IncorrectFundsSent();
 
         uint256 currentTokenId = _nextTokenId;
-        if (currentTokenId > maxSupply) 
-            revert MintingExceedsMaxSupply();
+        if (currentTokenId > maxSupply) revert MintingExceedsMaxSupply();
 
         _safeMint(msg.sender, currentTokenId);
         _nextTokenId = currentTokenId + 1;
@@ -225,8 +254,7 @@ contract Kokuhaku is
             if (currentTokenId + amount > maxSupply)
                 revert MintingExceedsMaxSupply();
 
-            if (msg.value != 0.02 ether * amount) 
-                revert IncorrectFundsSent();
+            if (msg.value != 0.02 ether * amount) revert IncorrectFundsSent();
 
             for (uint256 i; i < amount; i++) {
                 _safeMint(msg.sender, currentTokenId + i);
@@ -355,5 +383,9 @@ contract Kokuhaku is
         address auth
     ) internal override(ERC721, ERC721Pausable) returns (address) {
         return super._update(to, tokenId, auth);
+    }
+
+    function computeLeaf() external view returns (bytes32 leaf) {
+        leaf = keccak256(bytes.concat(keccak256(abi.encode(msg.sender))));
     }
 }

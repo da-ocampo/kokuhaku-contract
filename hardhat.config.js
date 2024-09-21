@@ -1,4 +1,5 @@
 require("@matterlabs/hardhat-zksync-solc");
+require("@nomiclabs/hardhat-ethers");
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
@@ -32,7 +33,7 @@ module.exports = {
     tests: "./test",
   },
   solidity: {
-    version: "0.8.25",
+    version: "0.8.26",
     settings: {
       optimizer: {
         enabled: true,
