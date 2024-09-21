@@ -212,8 +212,6 @@ contract Kokuhaku is IKokuhaku, ERC721, ERC721Pausable, ERC2981, Ownable {
         if (!MerkleProof.verify(merkleProof, whiteLists[listId], leaf))
             revert InvalidProofOrNotOnList();
 
-        // if (!whiteList[msg.sender]) revert NotOnWhiteList();
-
         if (currentTokenId > maxSupply) revert MintingExceedsMaxSupply();
 
         emit FreeMintUsed(msg.sender);
