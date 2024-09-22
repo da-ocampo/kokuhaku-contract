@@ -189,29 +189,32 @@ contract Kokuhaku is IKokuhaku, ERC721, ERC721Pausable, ERC2981, Ownable {
         uint256 listId,
         bytes32[] calldata merkleProof
     ) external whenNotPaused {
-        if (addressMintedOnList[listId][msg.sender]) {
-            revert FreeMintOnListAlreadyUsed();
+    
+        if (currentTokenId > maxSupply) {
+          revert MintingExceedsMaxSupply();
         }
 
-        uint256 currentTokenId = _nextTokenId;
-
-        // Generate the leaf
-        bytes32 leaf = keccak256(
+        if (addressMintedOnList[listId][msg.sender]) {
+                revert FreeMintOnListAlreadyUsed();
+        }
+        
+            // Verify the merkle proof
+            if (!MerkleProof.verify(merkleProof, whiteLists[listId], keccak256(
             bytes.concat(keccak256(abi.encode(msg.sender)))
-        );
+            )))
+    {
+                revert InvalidProofOrNotOnList();
+    }
 
-        // Verify the merkle proof
-        if (!MerkleProof.verify(merkleProof, whiteLists[listId], leaf))
-            revert InvalidProofOrNotOnList();
+            emit FreeMintUsed(msg.sender);
 
-        if (currentTokenId > maxSupply) revert MintingExceedsMaxSupply();
+            addressMintedOnList[listId][msg.sender] = true;
 
-        emit FreeMintUsed(msg.sender);
-
-        addressMintedOnList[listId][msg.sender] = true;
-
-        _safeMint(msg.sender, currentTokenId);
-        _nextTokenId = currentTokenId + 1;
+            uint256 currentTokenId = _nextTokenId;
+            _safeMint(msg.sender, currentTokenId);
+        unchecked {
+            _nextTokenId = currentTokenId + 1;
+        }
     }
 
     /**
