@@ -31,8 +31,8 @@ contract Kokuhaku is IKokuhaku, ERC721, ERC721Pausable, ERC2981, Ownable {
      * @param feeNumerator The numerator for the royalty fee.
      * @param initBaseURI The initial base URI for token metadata.
      * @param contractURI_ The URI for the contract metadata.
-     * @param initialMerkleRoot The initial merkle root at ID 1.
      */
+
     constructor(
         address initialOwner,
         uint96 feeNumerator,
@@ -55,17 +55,10 @@ contract Kokuhaku is IKokuhaku, ERC721, ERC721Pausable, ERC2981, Ownable {
             revert EmptyUriDisallowed();
         }
 
-        if (initialMerkleRoot == 0x0) {
-            revert InvalidMerkleRoot();
-        }
-
         baseURI = initBaseURI;
         contractURI = contractURI_;
 
         _setDefaultRoyalty(initialOwner, feeNumerator);
-
-        /// @dev you can take this out and the param out if not deploying a list at the start
-        whiteLists[1] = initialMerkleRoot;
 
         unchecked {
             _nextTokenId++;
