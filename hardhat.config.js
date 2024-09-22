@@ -1,5 +1,6 @@
 require("@matterlabs/hardhat-zksync-solc");
 require("@nomiclabs/hardhat-ethers");
+require('dotenv').config();
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
@@ -25,6 +26,18 @@ module.exports = {
       chainId: 324,
       zksync: true,
     },
+    mainnet: {
+      url: "https://mainnet.infura.io/v3/" + process.env.INFURA_API_KEY,
+    },
+    sepolia: {
+      url: "https://sepolia.infura.io/v3/" + process.env.INFURA_API_KEY,
+    },
+  },
+  etherscan: {
+    apiKey: {
+      mainnet: process.env.ETHERSCAN_API_KEY ?? "",
+      sepolia: process.env.ETHERSCAN_API_KEY ?? "",
+    },
   },
   paths: {
     artifacts: "./artifacts-zk",
@@ -39,7 +52,7 @@ module.exports = {
         enabled: true,
         runs: 200,
       },
-      viaIR:true,
+      viaIR: true,
       evmVersion: "cancun"
     },
   },
