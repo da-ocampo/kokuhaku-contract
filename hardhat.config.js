@@ -1,5 +1,6 @@
 require("@matterlabs/hardhat-zksync-solc");
 require("@nomiclabs/hardhat-ethers");
+require("@nomicfoundation/hardhat-verify");
 require('dotenv').config();
 
 /** @type import('hardhat/config').HardhatUserConfig */
