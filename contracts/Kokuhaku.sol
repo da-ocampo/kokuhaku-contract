@@ -12,6 +12,10 @@ import {IKokuhaku} from "./IKokuhaku.sol";
 
 /**
  * @title Kokuhaku
+ * @author Daniel's Gone <contact@danielsgone.com>
+ * @author thedarkjester <thedarkjester.eth>
+ * @author Vincente Void <contact@vincentevoid.com>
+ * @custom:team END (Every Night Dawns) <contact@everynightdawns.com>
  * @dev Implementation of the Kokuhaku ERC721 NFT contract with additional features such as pausing, royalty settings, and whitelist functionality.
  */
 contract Kokuhaku is IKokuhaku, ERC721, ERC721Pausable, ERC2981, Ownable {
