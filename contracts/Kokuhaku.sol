@@ -193,29 +193,29 @@ contract Kokuhaku is IKokuhaku, ERC721, ERC721Pausable, ERC2981, Ownable {
         uint256 listId,
         bytes32[] calldata merkleProof
     ) external whenNotPaused {
-    
+        uint256 currentTokenId = _nextTokenId;
+        
         if (currentTokenId > maxSupply) {
-          revert MintingExceedsMaxSupply();
+            revert MintingExceedsMaxSupply();
         }
 
         if (addressMintedOnList[listId][msg.sender]) {
-                revert FreeMintOnListAlreadyUsed();
+            revert FreeMintOnListAlreadyUsed();
         }
         
-            // Verify the merkle proof
-            if (!MerkleProof.verify(merkleProof, whiteLists[listId], keccak256(
+        // Verify the merkle proof
+        if (!MerkleProof.verify(merkleProof, whiteLists[listId], keccak256(
             bytes.concat(keccak256(abi.encode(msg.sender)))
-            )))
-    {
-                revert InvalidProofOrNotOnList();
-    }
+        ))) {
+            revert InvalidProofOrNotOnList();
+        }
 
-            emit FreeMintUsed(msg.sender);
+        emit FreeMintUsed(msg.sender);
 
-            addressMintedOnList[listId][msg.sender] = true;
+        addressMintedOnList[listId][msg.sender] = true;
 
-            uint256 currentTokenId = _nextTokenId;
-            _safeMint(msg.sender, currentTokenId);
+        _safeMint(msg.sender, currentTokenId);
+        
         unchecked {
             _nextTokenId = currentTokenId + 1;
         }
